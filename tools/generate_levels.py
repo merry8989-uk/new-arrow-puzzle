@@ -20,7 +20,14 @@ import sys
 DIRS = [( -1, 0), (0, 1), (1, 0), (0, -1)]   # N E S W
 SIZES = [(3, 3), (4, 4), (4, 5), (5, 5), (5, 6), (6, 6), (6, 7), (7, 7), (8, 8), (8, 9), (9, 9)]
 HARD_EVERY = 6
+HIGH_FROM = 25          # every level from here up is high-difficulty
 M32 = 0xFFFFFFFF
+
+
+def jsround(x):
+    """Round half up, matching JavaScript's Math.round."""
+    import math
+    return math.floor(x + 0.5)
 
 
 def imul(a, b):
@@ -69,14 +76,24 @@ def blocked_count(R, C, arrows):
 
 
 def params(i):
-    ch = min((i - 1) // 50, 239)
-    hard = (i % HARD_EVERY == 0)
-    R, C = SIZES[min(ch, len(SIZES) - 1)]
-    if hard:
-        R, C = min(9, R + 1), min(9, C + 1)
+    if i >= HIGH_FROM:
+        hard = True
+    else:
+        hard = (i >= 6 and i % HARD_EVERY == 0)
+    if i <= 5:                              # tutorial
+        R, C, frac = 3, 3, 0.40
+    elif i < HIGH_FROM:                     # gentle ramp over 6..24
+        t = (i - 6) / 18.0
+        s = SIZES[min(6, 1 + jsround(t * 5))]
+        R, C = s
+        frac = 0.30 + 0.15 * t + (0.06 if hard else 0.0)
+    else:                                   # high difficulty, 25 onward
+        ch = (i - HIGH_FROM) // 50
+        s = SIZES[min(len(SIZES) - 1, 7 + ch // 2)]
+        R, C = s
+        frac = min(0.58, 0.46 + 0.0015 * (i - HIGH_FROM))
     area = R * C
-    frac = min(0.58, 0.30 + 0.006 * ch) + (0.08 if hard else 0.0)
-    n = max(3, min(area - 1, round(area * frac)))
+    n = max(3, min(area - 1, jsround(area * frac)))
     return R, C, n, hard
 
 

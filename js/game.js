@@ -264,6 +264,9 @@
       })(ch);
     }
   }
+  function isHardLevel(id) {
+    return (window.ArrowLevels && window.ArrowLevels.isHard) ? window.ArrowLevels.isHard(id) : (id % 6 === 0);
+  }
   function renderLevelGrid(ch) {
     var g = $("level-grid"); g.innerHTML = "";
     for (var i = 0; i < 50; i++) {
@@ -271,7 +274,7 @@
       var b = document.createElement("button");
       var unlocked = id <= progress.unlocked;
       var st = progress.stars[id] || 0;
-      b.className = "lv" + (unlocked ? "" : " locked") + (id % 6 === 0 ? " hard" : "");
+      b.className = "lv" + (unlocked ? "" : " locked") + (isHardLevel(id) ? " hard" : "");
       b.innerHTML = id + (st ? "<span class='st'>" + "\u2605".repeat(st) + "</span>" : "");
       if (unlocked) b.onclick = (function (id) { return function () { startLevel(id); }; })(id);
       g.appendChild(b);

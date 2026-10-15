@@ -35,7 +35,9 @@ No build step, no dependencies, no network needed once the files have loaded.
 ## Features
 
 - Responsive board (3x3 up to 9x9) that scales to any phone, tablet or desktop.
-- 12,000 levels with a rising difficulty curve; **every 6th level is a hard level**.
+- 12,000 levels with a gradual difficulty ramp: **levels 1-5** are a tutorial,
+  **6-24** ramp up gently (4x4 -> 6x7 boards), and **from level 25 onward every
+  level is high-difficulty mode** (7x7 -> 9x9 boards with dense arrows).
 - Hearts, remaining-arrow counter, move counter, par, and a level progress bar.
 - Stars (3 / 2 / 1) based on how many mistakes you made.
 - Hint, Restart, and a Pause menu (Resume, Restart, Sound, Home).
@@ -86,7 +88,9 @@ cleared. Last run: **12,000 / 12,000 levels solvable, 0 failures.**
 ### Adding your own levels
 
 - **Change the catalogue size / curve** in `js/core.js` (`SIZES`, `HARD_EVERY`,
-  `params()`), or in `js/levels.js` (`total`, `hardEvery`).
+  `HIGH_FROM`, `params()`), or in `js/levels.js` (`total`, `hardEvery`,
+  `highFrom`). Raise or lower `HIGH_FROM` to move the point where high-difficulty
+  mode begins.
 - **Add a handcrafted level**: build an `{ rows, cols, arrows:[[r,c,d],...], par }`
   object and return it from a small override table keyed by id.
 - **Bake static data instead of generating at runtime**: run

@@ -90,15 +90,27 @@
 
   var SIZES = [[3, 3], [4, 4], [4, 5], [5, 5], [5, 6], [6, 6], [6, 7], [7, 7], [8, 8], [8, 9], [9, 9]];
   var HARD_EVERY = 6;
+  var HIGH_FROM = 25;   // every level from here up is high-difficulty
 
   function params(id) {
-    var ch = Math.min(Math.floor((id - 1) / 50), 239);
-    var hard = (id % HARD_EVERY === 0);
-    var s = SIZES[Math.min(ch, SIZES.length - 1)];
-    var R = s[0], C = s[1];
-    if (hard) { R = Math.min(9, R + 1); C = Math.min(9, C + 1); }
+    var hard;
+    if (id >= HIGH_FROM) hard = true;
+    else hard = (id >= 6 && id % HARD_EVERY === 0);
+    var R, C, frac;
+    if (id <= 5) {                        // tutorial - tiny boards
+      R = 3; C = 3; frac = 0.40;
+    } else if (id < HIGH_FROM) {          // gentle ramp over levels 6..24
+      var t = (id - 6) / 18;
+      var s = SIZES[Math.min(6, 1 + Math.round(t * 5))];
+      R = s[0]; C = s[1];
+      frac = 0.30 + 0.15 * t + (hard ? 0.06 : 0);
+    } else {                              // high difficulty, level 25 onward
+      var ch = Math.floor((id - HIGH_FROM) / 50);
+      var s2 = SIZES[Math.min(SIZES.length - 1, 7 + Math.floor(ch / 2))];
+      R = s2[0]; C = s2[1];
+      frac = Math.min(0.58, 0.46 + 0.0015 * (id - HIGH_FROM));
+    }
     var area = R * C;
-    var frac = Math.min(0.58, 0.30 + 0.006 * ch) + (hard ? 0.08 : 0);
     var n = Math.max(3, Math.min(area - 1, Math.round(area * frac)));
     return { R: R, C: C, n: n, hard: hard };
   }
