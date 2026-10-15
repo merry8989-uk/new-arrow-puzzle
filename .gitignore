@@ -1,0 +1,21 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.iml
+.idea/
+.vscode/
+
+# node (only if you use Capacitor/Cordova)
+node_modules/
+package-lock.json
+
+# build output
+dist/
+www/
+android/
+ios/
+*.log
+
+# local artefacts from the tools
+levels.json
+levels_dump.json

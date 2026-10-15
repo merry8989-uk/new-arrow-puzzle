@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0e1230">
+<meta name="description" content="Arrow Escape - a clean, offline arrow-clearing puzzle game with 12,000 levels.">
+<title>Arrow Escape</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= HOME ================= -->
+  <section id="screen-home" class="screen active">
+    <div class="home">
+      <div class="logo">
+        <div class="logo-mark">&#10132;</div>
+        <h1>ARROW<span>ESCAPE</span></h1>
+        <p class="tagline">Clear the board. Free every arrow.</p>
+      </div>
+      <button class="btn primary big" id="btn-play">
+        <span class="bl">Continue</span><span class="bs" id="play-sub">Level 1</span>
+      </button>
+      <div class="home-grid">
+        <button class="tile" id="btn-levels"><span class="ti">&#9638;</span><span class="tt">Levels</span><span class="ts" id="levels-sub">12,000</span></button>
+        <button class="tile" id="btn-daily"><span class="ti">&#9733;</span><span class="tt">Daily</span><span class="ts" id="daily-sub">New puzzle</span></button>
+        <button class="tile" id="btn-settings"><span class="ti">&#9881;</span><span class="tt">Settings</span><span class="ts" id="settings-sub">Sound on</span></button>
+        <button class="tile" id="btn-help"><span class="ti">?</span><span class="tt">How to play</span><span class="ts">Quick guide</span></button>
+      </div>
+      <p class="home-foot">Works fully offline &middot; progress saved on your device</p>
+    </div>
+  </section>
+
+  <!-- ================= LEVELS ================= -->
+  <section id="screen-levels" class="screen">
+    <header class="bar">
+      <button class="icon-btn" data-back>&#8592;</button>
+      <h2>Levels</h2>
+      <span class="bar-note" id="levels-progress"></span>
+    </header>
+    <div class="level-pager" id="level-pager"></div>
+    <div class="level-grid" id="level-grid"></div>
+  </section>
+
+  <!-- ================= GAME ================= -->
+  <section id="screen-game" class="screen">
+    <header class="hud">
+      <button class="icon-btn" id="btn-pause">&#10073;&#10073;</button>
+      <div class="hud-mid">
+        <div class="hud-level" id="hud-level">Level 1</div>
+        <div class="hud-stars" id="hud-stars"></div>
+      </div>
+      <div class="hearts" id="hearts"></div>
+    </header>
+    <div class="stats">
+      <span class="stat">Arrows <b id="stat-left">0</b></span>
+      <span class="stat">Moves <b id="stat-moves">0</b></span>
+      <span class="stat">Par <b id="stat-par">0</b></span>
+    </div>
+    <div class="progress"><i id="progress-bar"></i></div>
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+    <div class="controls">
+      <button class="btn ghost" id="btn-hint">Hint</button>
+      <button class="btn ghost" id="btn-restart">&#8635; Restart</button>
+    </div>
+  </section>
+</div>
+
+<!-- ================= OVERLAYS ================= -->
+<div id="ov-win" class="overlay">
+  <div class="card">
+    <h3>Level Complete</h3>
+    <div class="win-stars" id="win-stars"></div>
+    <p class="win-line" id="win-line"></p>
+    <button class="btn primary" id="btn-continue">Continue</button>
+    <button class="btn ghost" data-back>Home</button>
+  </div>
+</div>
+
+<div id="ov-over" class="overlay">
+  <div class="card">
+    <h3 class="danger">Out of Hearts</h3>
+    <p class="win-line">Every arrow can be cleared - look for the one whose lane is open.</p>
+    <button class="btn primary" id="btn-retry">Retry</button>
+    <button class="btn ghost" data-back>Home</button>
+  </div>
+</div>
+
+<div id="ov-pause" class="overlay">
+  <div class="card">
+    <h3>Paused</h3>
+    <button class="btn primary" id="btn-resume">Resume</button>
+    <button class="btn ghost" id="btn-pause-restart">Restart level</button>
+    <button class="btn ghost" id="btn-pause-sound">Sound: on</button>
+    <button class="btn ghost" data-back>Home</button>
+  </div>
+</div>
+
+<div id="ov-settings" class="overlay">
+  <div class="card">
+    <h3>Settings</h3>
+    <button class="btn ghost" id="set-sound">Sound: on</button>
+    <button class="btn ghost" id="set-vibrate">Vibration: on</button>
+    <button class="btn ghost" id="set-help">How to play</button>
+    <button class="btn ghost danger-text" id="set-reset">Reset progress</button>
+    <button class="btn primary" data-back>Close</button>
+  </div>
+</div>
+
+<div id="ov-help" class="overlay">
+  <div class="card wide">
+    <h3>How to play</h3>
+    <ul class="help-list">
+      <li>Each arrow points <b>up, down, left or right</b>.</li>
+      <li>Tap an arrow to remove it - but only if <b>its lane to the board edge is completely clear</b> of other arrows.</li>
+      <li>If something blocks the lane, the arrow shakes and you <b>lose a heart</b>.</li>
+      <li>Clear <b>every</b> arrow to finish the level. You have <b>3 hearts</b>.</li>
+      <li>Stuck? Tap <b>Hint</b> to highlight an arrow you can remove right now.</li>
+    </ul>
+    <button class="btn primary" data-back>Got it</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/core.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
