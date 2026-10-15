@@ -57,12 +57,16 @@ css/style.css         responsive, mobile-first styling
 js/core.js            pure puzzle logic + deterministic level generator
 js/levels.js          level-catalogue metadata (12,000 levels)
 js/game.js            UI, flow, progress, sound, effects, online packs
+js/playables.js       YouTube Playables SDK shim (no-op off YouTube)
 packs/                optional downloadable packs + manifest.json
 docs/PACKS.md         how the online pack system works
+docs/PLAYABLES.md     how the game runs on YouTube Playables
 tools/generate_levels.py   Python generator (mirror of the JS generator)
 tools/verify_levels.py     validates every level (solvability + integrity)
 tools/dump_levels.js       dumps all generated levels to JSON for validation
 tools/build_pack.js        builds a downloadable pack of fresh levels
+tools/build_bundle.sh      builds the Playables upload bundle
+tools/check_bundle.py      validates a bundle against the Playables limits
 tools/test_core.js         headless logic tests
 ```
 
@@ -123,6 +127,22 @@ node tools/build_pack.js --id winter-event --name "Winter Event" \
 ```
 
 See [`docs/PACKS.md`](docs/PACKS.md) for the manifest and pack formats.
+
+## YouTube Playables
+
+The game is wired for YouTube Playables: the SDK loads before any game code, the
+required calls are made (`firstFrameReady`, `gameReady`, `loadData`/`saveData`
+cloud save, `onPause`/`onResume`, mute handling), dialogs close with `Esc`, and
+it stays responsive in every aspect ratio. Outside YouTube the SDK is a no-op, so
+the same build still runs on the web.
+
+```bash
+bash tools/build_bundle.sh          # stages + zips the runtime files
+python3 tools/check_bundle.py build/playables   # validates against the limits
+```
+
+Inside Playables the online-pack feature is disabled (Playables allows no
+external calls) - all levels are built in. See [`docs/PLAYABLES.md`](docs/PLAYABLES.md).
 
 ## Package as an Android app (optional)
 

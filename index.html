@@ -140,8 +140,14 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- YouTube Playables SDK. MUST load before any game code. It is a no-op when
+     the game is served outside YouTube (local, GitHub Pages, any static host). -->
+<script src="https://www.youtube.com/game_api/v1"></script>
+<script src="js/playables.js"></script>
 <script src="js/core.js"></script>
 <script src="js/levels.js"></script>
+<!-- Online packs (web only). Not shipped in the Playables bundle. -->
+<script src="js/packs-config.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

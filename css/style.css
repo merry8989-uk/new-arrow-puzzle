@@ -93,7 +93,7 @@ body{
 /* ---------- board ---------- */
 .board-wrap{flex:1; display:flex; align-items:center; justify-content:center; min-height:0}
 .board{display:grid; gap:6px; padding:10px; background:rgba(255,255,255,.03);
-  border:1px solid var(--line); border-radius:18px; width:100%; max-width:min(92vw,460px);
+  border:1px solid var(--line); border-radius:18px; width:100%; max-width:min(92vw,62vh,460px);
   box-shadow:inset 0 0 40px rgba(0,0,0,.25)}
 .cell{aspect-ratio:1; border-radius:10px; background:rgba(255,255,255,.04)}
 .cell.arrow-cell{background:transparent}
@@ -141,3 +141,15 @@ body{
 
 @media (max-width:360px){ .logo h1{font-size:30px} .level-grid{grid-template-columns:repeat(4,1fr)} }
 @media (min-height:820px){ .arrow{font-size:clamp(16px,4.6vw,28px)} }
+/* Landscape / short viewports (Playables runs in many aspect ratios): keep
+   everything on screen without locking orientation. */
+@media (orientation:landscape) and (max-height:600px){
+  .screen{padding:10px}
+  .home{gap:10px}
+  .logo-mark{font-size:34px}
+  .logo h1{font-size:24px; letter-spacing:2px}
+  .tagline{display:none}
+  .controls{margin-top:8px}
+  .stats{margin:3px 0}
+  .board{gap:5px; padding:8px}
+}

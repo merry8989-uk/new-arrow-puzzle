@@ -6,8 +6,23 @@
   var GLYPH = ["\u2191", "\u2192", "\u2193", "\u2190"];       // N E S W
   var DCLASS = ["", "d1", "d2", "d3"];
   var LS_KEY = "newArrowPuzzle.v1";
-  // The only network use in the whole game: the optional pack manifest.
-  var MANIFEST_URL = "https://raw.githubusercontent.com/merry8989-uk/new-arrow-puzzle/main/packs/manifest.json";
+  // The only network use in the whole game: the optional pack manifest. The URL
+  // lives in js/packs-config.js, which is excluded from the Playables bundle, so
+  // the bundle contains no external URLs at all.
+  var MANIFEST_URL = window.PACKS_MANIFEST_URL || "";
+  var packsAvailable = !!MANIFEST_URL;   // false inside Playables
+
+  // YouTube Playables shim (js/playables.js). No-ops outside YouTube.
+  var YT = window.YTPlay || {
+    present: false, env: false,
+    firstFrame: function () {}, ready: function () {},
+    load: function () { return Promise.resolve(null); },
+    save: function () { return Promise.resolve(); },
+    audioEnabled: function () { return true; },
+    onAudio: function () {}, onPause: function () {}, onResume: function () {}
+  };
+  var cloudReady = !YT.env;   // cloud save only after loadData resolves
+  var paused = false;         // set by the Playables onPause / onResume callbacks
 
   var S = {
     mode: "campaign", ctx: null, lv: null, arrows: [], hearts: 3, maxHearts: 3,
@@ -21,24 +36,32 @@
     return { unlocked: 1, stars: {}, sound: true, vibrate: true, seenHelp: false,
              online: { packs: {}, checked: null } };
   }
+  function normalize(p) {
+    if (!p || typeof p !== "object") return blank();
+    p.stars = p.stars || {};
+    if (typeof p.unlocked !== "number") p.unlocked = 1;
+    if (typeof p.sound !== "boolean") p.sound = true;
+    if (typeof p.vibrate !== "boolean") p.vibrate = true;
+    if (!p.online) p.online = { packs: {}, checked: null };
+    if (!p.online.packs) p.online.packs = {};
+    return p;
+  }
   function load() {
     try {
       var raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        var p = JSON.parse(raw);
-        p.stars = p.stars || {};
-        if (typeof p.unlocked !== "number") p.unlocked = 1;
-        if (typeof p.sound !== "boolean") p.sound = true;
-        if (typeof p.vibrate !== "boolean") p.vibrate = true;
-        if (!p.online) p.online = { packs: {}, checked: null };
-        if (!p.online.packs) p.online.packs = {};
-        return p;
-      }
+      if (raw) return normalize(JSON.parse(raw));
     } catch (e) {}
     return blank();
   }
   var progress = load();
-  function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(progress)); } catch (e) {} }
+  // Inside YouTube Playables, progress is cloud-saved via the SDK; elsewhere it
+  // goes to localStorage. saveData must not run before loadData has resolved.
+  function save() {
+    var str;
+    try { str = JSON.stringify(progress); } catch (e) { return; }
+    if (YT.env) { if (cloudReady) YT.save(str); return; }
+    try { localStorage.setItem(LS_KEY, str); } catch (e) {}
+  }
   function onlinePacks() { if (!progress.online) progress.online = { packs: {}, checked: null }; if (!progress.online.packs) progress.online.packs = {}; return progress.online.packs; }
 
   /* ---------------- screens & overlays ---------------- */
@@ -60,6 +83,7 @@
   var actx = null;
   function sfx(kind) {
     if (!progress.sound) return;
+    if (!YT.audioEnabled()) return;   // respect YouTube's mute
     try {
       actx = actx || new (window.AudioContext || window.webkitAudioContext)();
       var seq = kind === "win" ? [660, 880, 1180] : [kind === "wrong" ? 170 : kind === "hint" ? 520 : 700];
@@ -135,7 +159,7 @@
 
   /* ---------------- input ---------------- */
   function tapArrow(id) {
-    if (S.locked) return;
+    if (S.locked || paused) return;
     var idx = -1;
     for (var i = 0; i < S.arrows.length; i++) if (S.arrows[i].id === id) { idx = i; break; }
     if (idx < 0) return;
@@ -232,14 +256,17 @@
     confetti();
     sfx("win"); buzz([12, 40, 12]);
     $("win-stars").textContent = "\u2605".repeat(stars) + "\u2606".repeat(3 - stars);
-    $("win-line").textContent = "Solved in " + S.moves + " moves \u00b7 " +
-      S.mistakes + " mistake" + (S.mistakes === 1 ? "" : "s");
+    var line = "Solved in " + S.moves + " moves \u00b7 " + S.mistakes + " mistake" + (S.mistakes === 1 ? "" : "s");
+    if (S.ctx.type === "campaign" && S.ctx.index >= TOTAL) {
+      line = "You've cleared all " + TOTAL.toLocaleString("en-IN") + " levels - that's the whole game. Thanks for playing!";
+    }
+    $("win-line").textContent = line;
     $("btn-continue").style.display = hasNext() ? "" : "none";
     showOverlay("ov-win");
   }
 
   function hint() {
-    if (S.locked) return;
+    if (S.locked || paused) return;
     var i = firstRemovableAt();
     if (i < 0) { toast("No move available - restart the level"); return; }
     var a = S.arrows[i], el = S.arrowEls[a.id];
@@ -359,6 +386,7 @@
 
   function checkForPacks() {
     var status = $("packs-status");
+    if (YT.env || !MANIFEST_URL) { status.textContent = "Online packs are unavailable here - all levels are built in."; return; }
     if (typeof fetch !== "function") { status.textContent = "This browser can't fetch packs - the built-in levels still work offline."; return; }
     status.textContent = "Checking for new packs...";
     var url = MANIFEST_URL + "?t=" + Date.now();
@@ -467,17 +495,53 @@
     backs[i].addEventListener("click", function () { closeOverlays(); refreshHome(); showScreen("screen-home"); });
   }
 
+  /* ---------------- Playables lifecycle ---------------- */
+  // Esc closes the pause / settings / help dialogs (never preventDefault).
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    var ov = document.querySelector(".overlay.show");
+    if (!ov || ov.id === "ov-win" || ov.id === "ov-over") return;
+    ov.classList.remove("show");
+  });
+  // Pause all input on onPause, resume only on onResume.
+  YT.onPause(function () { paused = true; save(); });
+  YT.onResume(function () { paused = false; });
+  // No external calls are allowed inside Playables, so when packs are
+  // unavailable (Playables bundle, or a host without packs-config.js) hide the
+  // online-packs entry entirely.
+  if (!packsAvailable || YT.env) {
+    var packsTile = $("btn-packs");
+    if (packsTile) packsTile.style.display = "none";
+  }
+
   /* ---------------- boot ---------------- */
+  function firstRunHelp() {
+    if (!progress.seenHelp) { progress.seenHelp = true; save(); showOverlay("ov-help"); }
+  }
   refreshHome();
   refreshSettings();
   showScreen("screen-home");
-  if (!progress.seenHelp) { progress.seenHelp = true; save(); showOverlay("ov-help"); }
+  YT.firstFrame();          // frames are being drawn now
+  if (YT.env) {
+    // Load cloud progress first; only then is it safe to save.
+    YT.load().then(function (raw) {
+      if (raw) { try { progress = normalize(JSON.parse(raw)); } catch (e) {} }
+      cloudReady = true;
+      refreshHome(); refreshSettings();
+      firstRunHelp();
+      YT.ready();           // the home screen is now interactive
+    });
+  } else {
+    firstRunHelp();
+  }
 
   window.__ArrowEscape = {
-    state: S, progress: progress, core: C, total: TOTAL,
+    state: S, core: C, total: TOTAL,
     startLevel: startLevel, startDaily: startDaily, startPack: startPack,
     canRemoveAt: canRemoveAt, arrOf: arrOf, firstRemovableAt: firstRemovableAt,
     normalizeLevel: normalizeLevel, installPack: installPack, checkForPacks: checkForPacks,
     onlinePacks: onlinePacks, manifestUrl: MANIFEST_URL
   };
+  // `progress` is replaced when cloud data loads, so expose it via a getter.
+  Object.defineProperty(window.__ArrowEscape, "progress", { get: function () { return progress; } });
 })();

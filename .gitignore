@@ -19,3 +19,6 @@ ios/
 # local artefacts from the tools
 levels.json
 levels_dump.json
+
+# Playables bundle build output
+build/
