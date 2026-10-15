@@ -1,20 +1,26 @@
-/* Arrow Escape - game controller (UI, flow, progress, effects). */
+/* New Arrow Puzzle - game controller (UI, flow, progress, effects, online packs). */
 (function () {
   "use strict";
   var C = window.APCore;
   var TOTAL = (window.ArrowLevels && window.ArrowLevels.total) || 12000;
   var GLYPH = ["\u2191", "\u2192", "\u2193", "\u2190"];       // N E S W
   var DCLASS = ["", "d1", "d2", "d3"];
-  var LS_KEY = "arrowEscape.v1";
+  var LS_KEY = "newArrowPuzzle.v1";
+  // The only network use in the whole game: the optional pack manifest.
+  var MANIFEST_URL = "https://raw.githubusercontent.com/merry8989-uk/new-arrow-puzzle/main/packs/manifest.json";
 
   var S = {
-    mode: "campaign", level: 1, lv: null, arrows: [], hearts: 3, maxHearts: 3,
+    mode: "campaign", ctx: null, lv: null, arrows: [], hearts: 3, maxHearts: 3,
     moves: 0, mistakes: 0, locked: false, cellEls: [], arrowEls: {}, chapter: 0
   };
 
   function $(id) { return document.getElementById(id); }
 
   /* ---------------- progress ---------------- */
+  function blank() {
+    return { unlocked: 1, stars: {}, sound: true, vibrate: true, seenHelp: false,
+             online: { packs: {}, checked: null } };
+  }
   function load() {
     try {
       var raw = localStorage.getItem(LS_KEY);
@@ -24,13 +30,16 @@
         if (typeof p.unlocked !== "number") p.unlocked = 1;
         if (typeof p.sound !== "boolean") p.sound = true;
         if (typeof p.vibrate !== "boolean") p.vibrate = true;
+        if (!p.online) p.online = { packs: {}, checked: null };
+        if (!p.online.packs) p.online.packs = {};
         return p;
       }
     } catch (e) {}
-    return { unlocked: 1, stars: {}, sound: true, vibrate: true, seenHelp: false };
+    return blank();
   }
   var progress = load();
   function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(progress)); } catch (e) {} }
+  function onlinePacks() { if (!progress.online) progress.online = { packs: {}, checked: null }; if (!progress.online.packs) progress.online.packs = {}; return progress.online.packs; }
 
   /* ---------------- screens & overlays ---------------- */
   function showScreen(id) {
@@ -44,7 +53,7 @@
   }
   function toast(msg) {
     var t = $("toast"); t.textContent = msg; t.classList.add("show");
-    clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("show"); }, 1800);
+    clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("show"); }, 1900);
   }
 
   /* ---------------- sound & haptics ---------------- */
@@ -113,15 +122,16 @@
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 360);
   }
 
-  // Core works on plain [r,c,d] tuples; the UI keeps richer objects, so map on demand.
-  function arrOf() { return S.arrows.map(function (a) { return [a.r, a.c, a.d]; }); }
-  function canRemoveAt(i) { return C.canRemove(S.lv.rows, S.lv.cols, arrOf(), i); }
-
   function shake(id) {
     var el = S.arrowEls[id]; if (!el) return;
     el.classList.remove("shake"); void el.offsetWidth; el.classList.add("shake");
     setTimeout(function () { el.classList.remove("shake"); }, 340);
   }
+
+  // Core works on plain [r,c,d] tuples; the UI keeps richer objects, so map on demand.
+  function arrOf() { return S.arrows.map(function (a) { return [a.r, a.c, a.d]; }); }
+  function canRemoveAt(i) { return C.canRemove(S.lv.rows, S.lv.cols, arrOf(), i); }
+  function firstRemovableAt() { return C.firstRemovable(S.lv.rows, S.lv.cols, arrOf()); }
 
   /* ---------------- input ---------------- */
   function tapArrow(id) {
@@ -178,47 +188,59 @@
   }
 
   /* ---------------- level flow ---------------- */
-  function startLevel(n) {
-    S.mode = "campaign"; S.level = n; S.lv = C.generate(n);
+  function startLevelObject(lv, title, ctx) {
+    S.mode = ctx.type; S.ctx = ctx; S.lv = lv;
     S.hearts = S.maxHearts = 3; S.moves = 0; S.mistakes = 0; S.locked = false;
-    buildBoard(S.lv);
-    $("hud-level").textContent = "Level " + n;
+    buildBoard(lv);
+    $("hud-level").textContent = title;
     updateHud(); closeOverlays(); showScreen("screen-game");
   }
-
+  function startLevel(n) { startLevelObject(C.generate(n), "Level " + n, { type: "campaign", index: n }); }
   function startDaily() {
     var d = new Date();
     var seed = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-    var id = 1000000 + seed;
-    S.mode = "daily"; S.level = id; S.lv = C.generate(id);
-    S.hearts = S.maxHearts = 3; S.moves = 0; S.mistakes = 0; S.locked = false;
-    buildBoard(S.lv);
-    $("hud-level").textContent = "Daily Puzzle";
-    updateHud(); closeOverlays(); showScreen("screen-game");
+    startLevelObject(C.generate(1000000 + seed), "Daily Puzzle", { type: "daily" });
   }
-
-  function restart() { closeOverlays(); if (S.mode === "daily") startDaily(); else startLevel(S.level); }
+  function startPack(packId, slot) {
+    var p = onlinePacks()[packId]; if (!p || !p.levels[slot]) return;
+    startLevelObject(p.levels[slot], p.name, { type: "pack", packId: packId, slot: slot, count: p.levels.length });
+  }
+  function restart() {
+    closeOverlays(); if (!S.ctx) return;
+    if (S.ctx.type === "campaign") startLevel(S.ctx.index);
+    else if (S.ctx.type === "daily") startDaily();
+    else if (S.ctx.type === "pack") startPack(S.ctx.packId, S.ctx.slot);
+  }
+  function hasNext() {
+    if (!S.ctx) return false;
+    if (S.ctx.type === "campaign") return S.ctx.index < TOTAL;
+    if (S.ctx.type === "pack") return S.ctx.slot + 1 < S.ctx.count;
+    return false;
+  }
 
   function winLevel() {
     var stars = S.mistakes === 0 ? 3 : S.mistakes === 1 ? 2 : 1;
-    if (S.mode === "campaign") {
-      var id = S.level;
+    if (S.ctx.type === "campaign") {
+      var id = S.ctx.index;
       if (!progress.stars[id] || progress.stars[id] < stars) progress.stars[id] = stars;
       if (id < TOTAL && id + 1 > progress.unlocked) progress.unlocked = id + 1;
       save();
+    } else if (S.ctx.type === "pack") {
+      var p = onlinePacks()[S.ctx.packId];
+      if (p) { p.done = p.done || {}; p.done[S.ctx.slot] = 1; save(); }
     }
     confetti();
     sfx("win"); buzz([12, 40, 12]);
     $("win-stars").textContent = "\u2605".repeat(stars) + "\u2606".repeat(3 - stars);
     $("win-line").textContent = "Solved in " + S.moves + " moves \u00b7 " +
       S.mistakes + " mistake" + (S.mistakes === 1 ? "" : "s");
-    $("btn-continue").style.display = (S.mode === "campaign" && S.level >= TOTAL) ? "none" : "";
+    $("btn-continue").style.display = hasNext() ? "" : "none";
     showOverlay("ov-win");
   }
 
   function hint() {
     if (S.locked) return;
-    var i = C.firstRemovable(S.lv.rows, S.lv.cols, arrOf());
+    var i = firstRemovableAt();
     if (i < 0) { toast("No move available - restart the level"); return; }
     var a = S.arrows[i], el = S.arrowEls[a.id];
     sfx("hint");
@@ -281,14 +303,123 @@
     }
   }
 
+  /* ---------------- packs (the only network feature) ---------------- */
+  // Turn one downloaded entry into a level object. Packs are untrusted data:
+  // we only read numbers, and every level is re-checked for solvability before
+  // it is kept. Nothing from a pack is ever executed.
+  function normalizeLevel(entry) {
+    if (!entry || typeof entry !== "object") return null;
+    if (typeof entry.gen === "number") {
+      return (entry.rows && entry.cols)
+        ? C.generateEx(entry.gen, entry.rows, entry.cols, entry.arrows || 0)
+        : C.generate(entry.gen);
+    }
+    if (entry.rows && entry.cols && entry.arrows && entry.arrows.length) {
+      var arrows = [];
+      for (var i = 0; i < entry.arrows.length; i++) {
+        var a = entry.arrows[i];
+        if (a && a.length >= 3 && typeof a[0] === "number" && typeof a[1] === "number" && typeof a[2] === "number") {
+          arrows.push([a[0] | 0, a[1] | 0, a[2] | 0]);
+        }
+      }
+      if (!arrows.length) return null;
+      return { rows: entry.rows | 0, cols: entry.cols | 0, arrows: arrows, par: entry.par || arrows.length, hard: !!entry.hard };
+    }
+    return null;
+  }
+
+  function installPack(meta) {
+    return new Promise(function (resolve) {
+      try {
+        var packs = onlinePacks();
+        var have = packs[meta.id];
+        if (have && have.version >= (meta.version || 1)) { resolve("skip"); return; }
+        var url = meta.url + (meta.url.indexOf("?") < 0 ? "?" : "&") + "t=" + Date.now();
+        fetch(url, { cache: "no-store" })
+          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+          .then(function (data) {
+            var raw = (data && data.levels) || [];
+            var levels = [], bad = 0;
+            for (var i = 0; i < raw.length; i++) {
+              var lv = normalizeLevel(raw[i]);
+              if (!lv || !C.isSolvable(lv.rows, lv.cols, lv.arrows)) { bad++; continue; }
+              levels.push(lv);
+            }
+            if (!levels.length) { resolve("failed"); return; }
+            packs[meta.id] = {
+              version: meta.version || 1, name: meta.name || meta.id,
+              desc: meta.desc || "", levels: levels, done: (have && have.done) || {}
+            };
+            resolve(have ? "updated" : "new");
+          })
+          .catch(function () { resolve("failed"); });
+      } catch (e) { resolve("failed"); }
+    });
+  }
+
+  function checkForPacks() {
+    var status = $("packs-status");
+    if (typeof fetch !== "function") { status.textContent = "This browser can't fetch packs - the built-in levels still work offline."; return; }
+    status.textContent = "Checking for new packs...";
+    var url = MANIFEST_URL + "?t=" + Date.now();
+    fetch(url, { cache: "no-store" })
+      .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then(function (man) {
+        var list = (man && man.packs) || [];
+        return Promise.all(list.map(installPack)).then(function (res) {
+          var added = 0, updated = 0, failed = 0;
+          res.forEach(function (x) { if (x === "new") added++; else if (x === "updated") updated++; else if (x === "failed") failed++; });
+          progress.online.checked = Date.now(); save(); renderPacks();
+          if (!added && !updated) status.textContent = "You're up to date - no new packs right now.";
+          else status.textContent = "Done: " + added + " new, " + updated + " updated" + (failed ? ", " + failed + " failed" : "") + ".";
+        });
+      })
+      .catch(function () {
+        status.textContent = "Couldn't reach the server (offline?). The built-in levels and any packs you already have still work.";
+      });
+  }
+
+  function renderPacks() {
+    var listEl = $("pack-list"); listEl.innerHTML = "";
+    var packs = onlinePacks();
+    var ids = Object.keys(packs);
+    $("packs-note").textContent = ids.length ? ids.length + " installed" : "";
+    if (!ids.length) {
+      var d = document.createElement("div");
+      d.className = "pack-empty";
+      d.textContent = "No packs yet. Tap \"Check for new packs\" to fetch optional extra levels.";
+      listEl.appendChild(d);
+      return;
+    }
+    ids.forEach(function (id) {
+      var p = packs[id];
+      var done = p.done ? Object.keys(p.done).length : 0;
+      var row = document.createElement("button");
+      row.className = "pack-row";
+      row.innerHTML = "<span class='pk-ico'>&#10022;</span>" +
+        "<span class='pk-mid'><span class='pk-name'></span><span class='pk-desc'></span></span>" +
+        "<span class='pk-prog'></span>";
+      row.querySelector(".pk-name").textContent = p.name;
+      row.querySelector(".pk-desc").textContent = (p.desc ? p.desc + "  " : "") + "(" + p.levels.length + " levels)";
+      row.querySelector(".pk-prog").textContent = done + "/" + p.levels.length;
+      row.onclick = function () { startPack(id, nextSlot(p)); };
+      listEl.appendChild(row);
+    });
+  }
+  function nextSlot(p) {
+    for (var i = 0; i < p.levels.length; i++) if (!p.done || !p.done[i]) return i;
+    return 0;
+  }
+  function showPacks() { renderPacks(); showScreen("screen-packs"); }
+
   /* ---------------- home ---------------- */
   function refreshHome() {
     $("play-sub").textContent = "Level " + Math.min(progress.unlocked, TOTAL);
     $("levels-sub").textContent = TOTAL.toLocaleString("en-IN");
     $("settings-sub").textContent = progress.sound ? "Sound on" : "Sound off";
-    $("daily-sub").textContent = "New puzzle";
+    var n = Object.keys(onlinePacks()).length;
+    $("packs-sub").textContent = n ? n + " installed" : "New levels";
   }
-
   function refreshSettings() {
     $("set-sound").textContent = "Sound: " + (progress.sound ? "on" : "off");
     $("set-vibrate").textContent = "Vibration: " + (progress.vibrate ? "on" : "off");
@@ -301,6 +432,8 @@
   on("btn-play", function () { startLevel(Math.min(progress.unlocked, TOTAL)); });
   on("btn-levels", showLevels);
   on("btn-daily", startDaily);
+  on("btn-packs", showPacks);
+  on("btn-check-packs", checkForPacks);
   on("btn-settings", function () { refreshSettings(); showOverlay("ov-settings"); });
   on("btn-help", function () { showOverlay("ov-help"); });
   on("btn-hint", hint);
@@ -308,7 +441,11 @@
   on("btn-pause", function () { refreshSettings(); showOverlay("ov-pause"); });
   on("btn-continue", function () {
     closeOverlays();
-    if (S.mode === "campaign" && S.level < TOTAL) startLevel(S.level + 1); else showLevels();
+    if (S.ctx.type === "campaign" && S.ctx.index < TOTAL) startLevel(S.ctx.index + 1);
+    else if (S.ctx.type === "pack" && S.ctx.slot + 1 < S.ctx.count) startPack(S.ctx.packId, S.ctx.slot + 1);
+    else if (S.ctx.type === "pack") showPacks();
+    else if (S.ctx.type === "campaign") showLevels();
+    else showScreen("screen-home");
   });
   on("btn-retry", restart);
   on("btn-resume", closeOverlays);
@@ -319,7 +456,9 @@
   on("set-help", function () { closeOverlays(); showOverlay("ov-help"); });
   on("set-reset", function () {
     if (window.confirm("Reset all progress and stars?")) {
-      progress = { unlocked: 1, stars: {}, sound: progress.sound, vibrate: progress.vibrate, seenHelp: true };
+      progress.stars = {}; progress.unlocked = 1;
+      var packs = onlinePacks();
+      Object.keys(packs).forEach(function (k) { packs[k].done = {}; });
       save(); closeOverlays(); refreshHome(); toast("Progress reset");
     }
   });
@@ -335,8 +474,10 @@
   if (!progress.seenHelp) { progress.seenHelp = true; save(); showOverlay("ov-help"); }
 
   window.__ArrowEscape = {
-    startLevel: startLevel, state: S, progress: progress, core: C,
-    canRemoveAt: canRemoveAt, arrOf: arrOf,
-    firstRemovableAt: function () { return C.firstRemovable(S.lv.rows, S.lv.cols, arrOf()); }
+    state: S, progress: progress, core: C, total: TOTAL,
+    startLevel: startLevel, startDaily: startDaily, startPack: startPack,
+    canRemoveAt: canRemoveAt, arrOf: arrOf, firstRemovableAt: firstRemovableAt,
+    normalizeLevel: normalizeLevel, installPack: installPack, checkForPacks: checkForPacks,
+    onlinePacks: onlinePacks, manifestUrl: MANIFEST_URL
   };
 })();

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0e1230">
-<meta name="description" content="Arrow Escape - a clean, offline arrow-clearing puzzle game with 12,000 levels.">
-<title>Arrow Escape</title>
+<meta name="description" content="New Arrow Puzzle - a clean, offline arrow-clearing puzzle game with 12,000 levels.">
+<title>New Arrow Puzzle</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
     <div class="home">
       <div class="logo">
         <div class="logo-mark">&#10132;</div>
-        <h1>ARROW<span>ESCAPE</span></h1>
+        <h1>NEW ARROW<span>PUZZLE</span></h1>
         <p class="tagline">Clear the board. Free every arrow.</p>
       </div>
       <button class="btn primary big" id="btn-play">
@@ -25,8 +25,9 @@
       <div class="home-grid">
         <button class="tile" id="btn-levels"><span class="ti">&#9638;</span><span class="tt">Levels</span><span class="ts" id="levels-sub">12,000</span></button>
         <button class="tile" id="btn-daily"><span class="ti">&#9733;</span><span class="tt">Daily</span><span class="ts" id="daily-sub">New puzzle</span></button>
+        <button class="tile" id="btn-packs"><span class="ti">&#10022;</span><span class="tt">Packs</span><span class="ts" id="packs-sub">New levels</span></button>
         <button class="tile" id="btn-settings"><span class="ti">&#9881;</span><span class="tt">Settings</span><span class="ts" id="settings-sub">Sound on</span></button>
-        <button class="tile" id="btn-help"><span class="ti">?</span><span class="tt">How to play</span><span class="ts">Quick guide</span></button>
+        <button class="tile wide-tile" id="btn-help"><span class="ti">?</span><span class="tt">How to play</span><span class="ts">Quick guide</span></button>
       </div>
       <p class="home-foot">Works fully offline &middot; progress saved on your device</p>
     </div>
@@ -41,6 +42,18 @@
     </header>
     <div class="level-pager" id="level-pager"></div>
     <div class="level-grid" id="level-grid"></div>
+  </section>
+
+  <!-- ================= PACKS ================= -->
+  <section id="screen-packs" class="screen">
+    <header class="bar">
+      <button class="icon-btn" data-back>&#8592;</button>
+      <h2>Packs</h2>
+      <span class="bar-note" id="packs-note"></span>
+    </header>
+    <button class="btn primary" id="btn-check-packs">Check for new packs</button>
+    <p class="packs-status" id="packs-status">Fetch optional extra level packs. The built-in 12,000 levels need no network.</p>
+    <div class="pack-list" id="pack-list"></div>
   </section>
 
   <!-- ================= GAME ================= -->
@@ -119,6 +132,7 @@
       <li>If something blocks the lane, the arrow shakes and you <b>lose a heart</b>.</li>
       <li>Clear <b>every</b> arrow to finish the level. You have <b>3 hearts</b>.</li>
       <li>Stuck? Tap <b>Hint</b> to highlight an arrow you can remove right now.</li>
+      <li><b>Packs</b> adds optional extra levels - everything else works offline.</li>
     </ul>
     <button class="btn primary" data-back>Got it</button>
   </div>

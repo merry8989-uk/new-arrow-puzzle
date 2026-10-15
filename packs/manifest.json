@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "generated": "2026-10-15",
+  "note": "Optional extra packs fetched by the game's 'Check for new packs' button. The built-in 12,000 levels need no network; this is the only network use.",
+  "packs": [
+    {
+      "id": "starter-boost",
+      "name": "Starter Boost",
+      "version": 1,
+      "desc": "30 fresh, gentle 5x5 puzzles.",
+      "url": "https://raw.githubusercontent.com/merry8989-uk/new-arrow-puzzle/main/packs/starter-boost.json"
+    },
+    {
+      "id": "brain-bender",
+      "name": "Brain Bender",
+      "version": 1,
+      "desc": "20 fresh, tough 8x8 puzzles.",
+      "url": "https://raw.githubusercontent.com/merry8989-uk/new-arrow-puzzle/main/packs/brain-bender.json"
+    }
+  ]
+}

@@ -145,11 +145,32 @@
     return best || { id: id, rows: p.R, cols: p.C, arrows: pl, par: pl.length, blocked: 0, hard: p.hard };
   }
 
+  // Generate a level with an explicit size / arrow count, from any seed. Used by
+  // downloadable packs so pack authors control difficulty and can mint levels
+  // that are not part of the built-in campaign.
+  function generateEx(seed, R, C, n) {
+    R = Math.max(3, Math.min(12, R | 0));
+    C = Math.max(3, Math.min(12, C | 0));
+    n = Math.max(3, Math.min(R * C - 1, n ? (n | 0) : Math.round(R * C * 0.4)));
+    var rng = mulberry32(hashId(seed)), best = null;
+    for (var a = 0; a < 14; a++) {
+      var placed = place(rng, R, C, n);
+      if (placed.length < 3) continue;
+      var blocked = blockedCount(R, C, placed);
+      var cand = { id: seed, rows: R, cols: C, arrows: placed, par: placed.length, blocked: blocked, hard: false };
+      if (blocked < 1) { if (!best) best = cand; continue; }
+      return cand;
+    }
+    var pl = place(rng, R, C, n);
+    return best || { id: seed, rows: R, cols: C, arrows: pl, par: pl.length, blocked: 0, hard: false };
+  }
+
   root.APCore = {
     DIRS: DIRS, inBounds: inBounds, rayClear: rayClear, canRemove: canRemove,
     firstRemovable: firstRemovable, removeAt: removeAt, solve: solve,
     isSolvable: isSolvable, blockedCount: blockedCount,
-    generate: generate, params: params, mulberry32: mulberry32, hashId: hashId
+    generate: generate, generateEx: generateEx, params: params,
+    mulberry32: mulberry32, hashId: hashId
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.APCore;
 })(typeof window !== "undefined" ? window : globalThis);

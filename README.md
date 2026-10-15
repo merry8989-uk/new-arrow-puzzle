@@ -45,6 +45,8 @@ No build step, no dependencies, no network needed once the files have loaded.
 - Sound effects (Web Audio, no asset files) and haptic feedback, both toggleable.
 - **Daily Puzzle** - a fresh deterministic puzzle every day.
 - Level unlocking, per-level stars, and progress saved in `localStorage`.
+- **Optional online packs** - fetch extra levels from GitHub with one tap, no new
+  build needed. This is the only network use in the whole game.
 - Works fully **offline**; no account, no ads, no tracking.
 
 ## Project layout
@@ -54,10 +56,13 @@ index.html            the whole game shell (screens + overlays)
 css/style.css         responsive, mobile-first styling
 js/core.js            pure puzzle logic + deterministic level generator
 js/levels.js          level-catalogue metadata (12,000 levels)
-js/game.js            UI, flow, progress, sound, effects
+js/game.js            UI, flow, progress, sound, effects, online packs
+packs/                optional downloadable packs + manifest.json
+docs/PACKS.md         how the online pack system works
 tools/generate_levels.py   Python generator (mirror of the JS generator)
 tools/verify_levels.py     validates every level (solvability + integrity)
 tools/dump_levels.js       dumps all generated levels to JSON for validation
+tools/build_pack.js        builds a downloadable pack of fresh levels
 tools/test_core.js         headless logic tests
 ```
 
@@ -96,6 +101,28 @@ cleared. Last run: **12,000 / 12,000 levels solvable, 0 failures.**
 - **Bake static data instead of generating at runtime**: run
   `node tools/dump_levels.js 12000 levels.json` and load that JSON, if you prefer
   shipping a data file to shipping a generator.
+
+## Optional online packs (new levels without a new build)
+
+Because the game is a static site, you can publish **new levels later without
+shipping a new build** - players pick them up from inside the game.
+
+- The **Packs** tile opens the pack screen; **Check for new packs** fetches
+  `packs/manifest.json` from this repo and installs any newer packs.
+- Packs are validated level by level before they are kept, so a bad or hostile
+  pack can never create an unsolvable level or run code.
+- Everything else stays offline: if the fetch fails, the built-in levels and any
+  installed packs keep working.
+
+To publish a pack:
+
+```bash
+node tools/build_pack.js --id winter-event --name "Winter Event" \
+  --count 40 --rows 7 --cols 7 --arrows 22 --seed 70001 packs/winter-event.json
+# then add it to packs/manifest.json (with a version) and commit
+```
+
+See [`docs/PACKS.md`](docs/PACKS.md) for the manifest and pack formats.
 
 ## Package as an Android app (optional)
 
